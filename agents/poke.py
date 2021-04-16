@@ -3,10 +3,11 @@ import time
 import gym
 import numpy as np
 import random
+import rl
 
-from rl.agents.dqn import DQNAgent
-from rl.policy import LinearAnnealedPolicy, EpsGreedyQPolicy
-from rl.memory import SequentialMemory
+# from rl.agents.dqn import DQNAgent
+# from rl.policy import LinearAnnealedPolicy, EpsGreedyQPolicy
+# from rl.memory import SequentialMemory
 
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, Conv2D, MaxPooling2D, Activation, Flatten
@@ -20,10 +21,10 @@ from poke_env.player_configuration import PlayerConfiguration
 from poke_env.server_configuration import ShowdownServerConfiguration
 
 
-class RLPlayer(Player):
+class RLPlayer(Gen8EnvSinglePlayer):
     ### this will contain the necessary observations of a battle needed for the learning:
     ### number of pokemon (opp & player), move base power, move type multi, move category (phyisical, )
-    def battle_components(self, battle):
+    def embed_battle(self, battle):
 
         ### the vector containing all the information needed
         result = np.array([])
