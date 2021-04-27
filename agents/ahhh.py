@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 import tensorflow as tf
-graph = tf.compat.v1.get_default_graph()
 
 from poke_env.player.env_player import Gen8EnvSinglePlayer
 from poke_env.player.random_player import RandomPlayer
@@ -9,7 +8,6 @@ from poke_env.player.random_player import RandomPlayer
 from rl.agents.dqn import DQNAgent
 from rl.policy import LinearAnnealedPolicy, EpsGreedyQPolicy
 from rl.memory import SequentialMemory
-from tensorflow.keras.layers import Dense, Dropout, Conv2D, MaxPooling2D, Activation, Flatten
 from tensorflow.keras.layers import Dense, Flatten
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.optimizers import Adam
@@ -17,7 +15,7 @@ from tensorflow.keras.optimizers import Adam
 
 # We define our RL player
 # It needs a state embedder and a reward computer, hence these two methods
-class pokebot(Gen8EnvSinglePlayer):
+class SimpleRLPlayer(Gen8EnvSinglePlayer):
     def embed_battle(self, battle):
         # -1 indicates that the move does not have a base power
         # or is not available
@@ -72,15 +70,17 @@ class MaxDamagePlayer(RandomPlayer):
 NB_TRAINING_STEPS = 10000
 NB_EVALUATION_EPISODES = 100
 
-tf.random.set_seed(0)
-np.random.seed(0)
+# tf.random.set_random_seed(0)
+# np.random.seed(0)
+# graph = tf.compat.v1.get_default_graph()
 
 
 # This is the function that will be used to train the dqn
 def dqn_training(player, dqn, nb_steps):
-    with graph.as_default():
-        dqn.fit(player, nb_steps=nb_steps)
-        player.complete_current_battle()
+    # global graph
+    # with graph.as_default():
+    dqn.fit(player, nb_steps=nb_steps)
+    player.complete_current_battle()
 
 
 def dqn_evaluation(player, dqn, nb_episodes):
@@ -95,28 +95,13 @@ def dqn_evaluation(player, dqn, nb_episodes):
 
 
 if __name__ == "__main__":
-    env_player = pokebot(battle_format="gen8randombattle")
+    env_player = SimpleRLPlayer(battle_format="gen8randombattle")
 
     opponent = RandomPlayer(battle_format="gen8randombattle")
     second_opponent = MaxDamagePlayer(battle_format="gen8randombattle")
 
     # Output dimension
     n_action = len(env_player.action_space)
-
-    # model = Sequential()
-    # model.add(Conv2D(256, input_shape=(1, 13), activation="relu"))
-    # model.add(MaxPooling2D(pool_size=(2,2)))
-    # model.add(Dropout(0.2))
-
-    # model.add(Conv2D(256, activation="relu"))
-    # model.add(MaxPooling2D(pool_size=(2,2)))
-    # model.add(Dropout(0.2))
-
-    # model.add(Flatten())
-    # model.add(Dense(64))
-
-    # model.add(Dense(n_action, activation="linear"))
-    # model.compile(loss="mse", optimizer=Adam(learning_rate=0.0025), metrics=['mae'])
 
     model = Sequential()
     model.add(Dense(128, activation="elu", input_shape=(1, 10)))
