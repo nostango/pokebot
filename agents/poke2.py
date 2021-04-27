@@ -2,6 +2,7 @@ import time
 import gym
 import numpy as np
 import tensorflow as tf
+import keras
 import random
 import rl
 import os
