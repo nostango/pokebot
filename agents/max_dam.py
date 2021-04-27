@@ -32,7 +32,7 @@ async def main():
     )
 
     # Now, let's evaluate our player
-    await max_damage_player.accept_challenges(None, 1)
+    await max_damage_player.send_challenges("RLPokeBot", n_challenges=1)
 
     print(
         "Max damage player won %d / 100 battles [this took %f seconds]"
