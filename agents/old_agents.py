@@ -1,3 +1,4 @@
+import asyncio
 import time
 import gym
 import numpy as np
@@ -6,23 +7,21 @@ import random
 import rl
 import os
 
-from tabulate import tabulate
-
 from rl.agents.dqn import DQNAgent
 from rl.policy import LinearAnnealedPolicy, EpsGreedyQPolicy
 from rl.memory import SequentialMemory
 
-from tensorflow.keras import Model
-from tensorflow.keras.layers import Dense, Flatten, MaxPooling2D, Conv2D, Dropout
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.optimizers import Adam
+from tensorflow.compat.v1.keras.models import Sequential
+from tensorflow.compat.v1.keras.layers import Dense, Dropout, Conv2D, MaxPooling2D, Activation, Flatten
+from tensorflow.compat.v1.keras.callbacks import TensorBoard
+from tensorflow.compat.v1.keras.optimizers import Adam
+from tensorflow.python.keras.backend import set_session
 from collections import deque
 
 from poke_env.player.env_player import Gen8EnvSinglePlayer
 from poke_env.player.random_player import RandomPlayer
 from poke_env.player_configuration import PlayerConfiguration
 from poke_env.server_configuration import ShowdownServerConfiguration
-from poke_env.player.utils import cross_evaluate
 
 
 class RLPlayer(Gen8EnvSinglePlayer):
@@ -46,6 +45,7 @@ class RLPlayer(Gen8EnvSinglePlayer):
                     battle.opponent_active_pokemon.type_1,
                     battle.opponent_active_pokemon.type_2
                 )
+            #np.append(move_category, move_category.MoveCategory)
 
 
         return np.concatenate([
@@ -53,27 +53,37 @@ class RLPlayer(Gen8EnvSinglePlayer):
             move_type_multiplier,
             [opp_remaining_pokemon,
             player_remaining_pokemon]
+            #move_category,
         ])
 
     def reward(self, battle):
         compute_reward(
             battle,
-            fainted_value = 2,
+            fainted_value = 3,
             hp_value = 1,
             status_value = 0.5,
-            victory_value = 30
+            victory_value = 50
         )
 
 NB_TRAINING_STEPS = 10000
 NB_EVALUATION_EPISODES = 100
 
-tf.compat.v1.random.set_random_seed(0)
+tf.random.set_seed(0)
 np.random.seed(0)
 
+tf_config = os.environ.get('TF_CONFIG')
+sess = tf.compat.v1.Session(config=tf_config)
+
+graph = tf.compat.v1.get_default_graph()
 
 def dqn_training(player, dqn, nb_steps):
-    dqn.fit(player, nb_steps=nb_steps)
-    player.complete_current_battle()
+    global graph
+    global sess
+    with sess.as_default():
+        with sess.graph.as_default():
+            set_session(sess)
+            dqn.fit(player, nb_steps=nb_steps)
+            player.complete_current_battle()
 
 
 def dqn_evaluation(player, dqn, nb_episodes):
@@ -87,42 +97,39 @@ def dqn_evaluation(player, dqn, nb_episodes):
     )
     
 if __name__ == "__main__":
-    print(tf.__version__)
-
     ### get the players
     env_player = RLPlayer(battle_format="gen8randombattle")
-    # env2_player = RLPlayer_high_vic(battle_formaat="gen8randombattle")
-    # env3_player = RLPlayer_high_hp(battle_formaat="gen8randombattle")
-    # env4_player = RLPlayer_high_faint(battle_formaat="gen8randombattle")
-    # env5_player = RLPlayer_diff_model(battle_formaat="gen8randombattle")
     opponent = RandomPlayer(battle_format="gen8randombattle")
-    # opponent2 = MaxDamagePlayer(battle_format="gen8randombattle")
 
     ### create the model
     n_action = len(env_player.action_space)
 
-    model = Sequential([
-        Dense(128, activation='relu', input_shape=(1, 10)),
-        Flatten(),
-        Dense(64, activation='relu'),
-        Dense(n_action, activation='linear')
-    ]
-    )
+    set_session(sess)
+    model = Sequential()
+    model.add(Dense(128, activation="relu", input_shape=(1, 10)))
 
-    # model = Sequential([
-    #     Dense(256, input_shape=(1, 13), activation="relu"),
-    #     MaxPooling2D(pool_size=(2, 2), strides=None, padding="valid", data_format=None),
-    #     Dropout(0.2),
+    # Our embedding have shape (1, 10), which affects our hidden layer
+    # dimension and output dimension
+    # Flattening resolve potential issues that would arise otherwise
+    model.add(Flatten())
+    model.add(Dense(64, activation="relu"))
+    model.add(Dense(n_action, activation="linear"))
 
-    #     Dense(256, activation="relu"),
-    #     MaxPooling2D(pool_size=(2,2)),
-    #     Dropout(0.2),
+    # model = Sequential()
+    # model.add(Conv2D(256, input_shape=(1, 13), activation="relu") ### 13 because of our 13 inputs from the environment
 
-    #     Flatten(),
-    #     Dense(64),
+    # model.add(MaxPooling2D(2, 2))
+    # model.add(Dropout(0.2))
 
-    #     Dense(n_action, activation="linear")
-    # ])
+    # model.add(Conv2D(256), (1, 3), activation="relu")
+    # model.add(MaxPooling2D(2, 2))
+    # model.add(Dropout(0.2))
+
+    # model.add(Flatten())
+    # model.add(Dense(64))
+
+    # model.add(Dense(n_action, activation="linear"))
+    # model.compile(Loss="mse", optimizer=Adam(lr=0.0025), metrics=['mae'])
 
     memory = SequentialMemory(limit=10000, window_length=1)
 
@@ -149,7 +156,9 @@ if __name__ == "__main__":
         enable_double_dqn=True,
     )
 
-    dqn.compile(Adam(lr=0.00025), metrics=['accuracy'])
+    dqn.compile(Adam(lr=0.00025), metrics=["mae"])
+
+    set_session(sess)
     
     # Training
     env_player.play_against(
@@ -167,9 +176,9 @@ if __name__ == "__main__":
         env_algorithm_kwargs={"dqn": dqn, "nb_episodes": NB_EVALUATION_EPISODES},
     )
 
-    # print("\nResults against max player:")
-    # env_player.play_against(
-    #     env_algorithm=dqn_evaluation,
-    #     opponent=second_opponent,
-    #     env_algorithm_kwargs={"dqn": dqn, "nb_episodes": NB_EVALUATION_EPISODES},
-    # )
+    print("\nResults against max player:")
+    env_player.play_against(
+        env_algorithm=dqn_evaluation,
+        opponent=second_opponent,
+        env_algorithm_kwargs={"dqn": dqn, "nb_episodes": NB_EVALUATION_EPISODES},
+    )

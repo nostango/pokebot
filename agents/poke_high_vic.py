@@ -6,8 +6,6 @@ import random
 import rl
 import os
 
-from tabulate import tabulate
-
 from rl.agents.dqn import DQNAgent
 from rl.policy import LinearAnnealedPolicy, EpsGreedyQPolicy
 from rl.memory import SequentialMemory
@@ -22,10 +20,9 @@ from poke_env.player.env_player import Gen8EnvSinglePlayer
 from poke_env.player.random_player import RandomPlayer
 from poke_env.player_configuration import PlayerConfiguration
 from poke_env.server_configuration import ShowdownServerConfiguration
-from poke_env.player.utils import cross_evaluate
 
 
-class RLPlayer(Gen8EnvSinglePlayer):
+class RLPlayer_high_vic(Gen8EnvSinglePlayer):
     ### this will contain the necessary observations of a battle needed for the learning:
     ### number of pokemon (opp & player), move base power, move type multi, move category (phyisical, )
     def embed_battle(self, battle):
@@ -61,7 +58,7 @@ class RLPlayer(Gen8EnvSinglePlayer):
             fainted_value = 2,
             hp_value = 1,
             status_value = 0.5,
-            victory_value = 30
+            victory_value = 60
         )
 
 NB_TRAINING_STEPS = 10000
@@ -90,13 +87,8 @@ if __name__ == "__main__":
     print(tf.__version__)
 
     ### get the players
-    env_player = RLPlayer(battle_format="gen8randombattle")
-    # env2_player = RLPlayer_high_vic(battle_formaat="gen8randombattle")
-    # env3_player = RLPlayer_high_hp(battle_formaat="gen8randombattle")
-    # env4_player = RLPlayer_high_faint(battle_formaat="gen8randombattle")
-    # env5_player = RLPlayer_diff_model(battle_formaat="gen8randombattle")
+    env_player = RLPlayer_high_vic(battle_format="gen8randombattle")
     opponent = RandomPlayer(battle_format="gen8randombattle")
-    # opponent2 = MaxDamagePlayer(battle_format="gen8randombattle")
 
     ### create the model
     n_action = len(env_player.action_space)

@@ -2,7 +2,6 @@ import time
 import gym
 import numpy as np
 import tensorflow as tf
-import keras
 import random
 import rl
 import os
@@ -12,7 +11,7 @@ from rl.policy import LinearAnnealedPolicy, EpsGreedyQPolicy
 from rl.memory import SequentialMemory
 
 from tensorflow.keras import Model
-from tensorflow.keras.layers import Dense, Flatten
+from tensorflow.keras.layers import Dense, Flatten, MaxPooling2D, Conv2D, Dropout
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.optimizers import Adam
 from collections import deque
@@ -23,7 +22,7 @@ from poke_env.player_configuration import PlayerConfiguration
 from poke_env.server_configuration import ShowdownServerConfiguration
 
 
-class RLPlayer(Gen8EnvSinglePlayer):
+class RLPlayer_diff_model(Gen8EnvSinglePlayer):
     ### this will contain the necessary observations of a battle needed for the learning:
     ### number of pokemon (opp & player), move base power, move type multi, move category (phyisical, )
     def embed_battle(self, battle):
@@ -56,10 +55,10 @@ class RLPlayer(Gen8EnvSinglePlayer):
     def reward(self, battle):
         compute_reward(
             battle,
-            fainted_value = 3,
+            fainted_value = 2,
             hp_value = 1,
             status_value = 0.5,
-            victory_value = 50
+            victory_value = 30
         )
 
 NB_TRAINING_STEPS = 10000
@@ -88,19 +87,34 @@ if __name__ == "__main__":
     print(tf.__version__)
 
     ### get the players
-    env_player = RLPlayer(battle_format="gen8randombattle")
+    env_player = RLPlayer_diff_model(battle_format="gen8randombattle")
     opponent = RandomPlayer(battle_format="gen8randombattle")
 
     ### create the model
     n_action = len(env_player.action_space)
 
     model = Sequential([
-        Dense(128, activation='relu', input_shape=(1, 10)),
+        Dense(256, activation='relu', input_shape=(1, 10)),
         Flatten(),
-        Dense(64, activation='relu'),
+        Dense(128, activation='relu'),
         Dense(n_action, activation='linear')
     ]
     )
+
+    # model = Sequential([
+    #     Dense(256, input_shape=(1, 13), activation="relu"),
+    #     MaxPooling2D(pool_size=(2, 2), strides=None, padding="valid", data_format=None),
+    #     Dropout(0.2),
+
+    #     Dense(256, activation="relu"),
+    #     MaxPooling2D(pool_size=(2,2)),
+    #     Dropout(0.2),
+
+    #     Flatten(),
+    #     Dense(64),
+
+    #     Dense(n_action, activation="linear")
+    # ])
 
     memory = SequentialMemory(limit=10000, window_length=1)
 
@@ -145,9 +159,9 @@ if __name__ == "__main__":
         env_algorithm_kwargs={"dqn": dqn, "nb_episodes": NB_EVALUATION_EPISODES},
     )
 
-    print("\nResults against max player:")
-    env_player.play_against(
-        env_algorithm=dqn_evaluation,
-        opponent=second_opponent,
-        env_algorithm_kwargs={"dqn": dqn, "nb_episodes": NB_EVALUATION_EPISODES},
-    )
+    # print("\nResults against max player:")
+    # env_player.play_against(
+    #     env_algorithm=dqn_evaluation,
+    #     opponent=second_opponent,
+    #     env_algorithm_kwargs={"dqn": dqn, "nb_episodes": NB_EVALUATION_EPISODES},
+    # )
